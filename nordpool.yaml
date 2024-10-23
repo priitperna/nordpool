@@ -1,6 +1,6 @@
 blueprint:
-  name: Nordpool price cheap expensive
-  description: This blueprints uses the nordpool integration and lets you choose howe many hours you wil define as expesive, and make automations based on that information.
+  name: Nordpool price and rank
+  description: Testing
   domain: automation
   input:
     grid_area:
@@ -20,6 +20,16 @@ blueprint:
           max: 24
           mode: slider
           step: 1.0
+    cheap_price:
+      name: Turn on price
+      description: consider cheap if under this limit
+      default: 0.05
+      selector:
+        number:
+          min: 0.0
+          max: 4
+          mode: slider
+          step: 0.01
     expensive:
       name: Expensive
       description: Action to run on expensive
@@ -35,6 +45,7 @@ blueprint:
 variables:
   grid_area_var: !input 'grid_area'
   expensive_hours_var: !input 'expensive_hours'
+  cheap_price_var: !input 'cheap_price'
 
 trigger:
   - platform: state
@@ -45,11 +56,11 @@ action:
       - conditions:
           - condition: template
             value_template: >-
-              {{ (state_attr(grid_area_var,'today')|sort)[24 - expensive_hours_var |int] > states(grid_area_var)|float }}
+              {{ ((state_attr(grid_area_var,'today')|sort)[24 - expensive_hours_var |int] > states(grid_area_var)|float) or (state_attr(grid_area_var,'current_price')|float < cheap_price_var | float) }}
         sequence: !input 'cheap'
       - conditions:
           - condition: template
             value_template: >-
-              {{ (state_attr(grid_area_var,'today')|sort)[24 - expensive_hours_var |int] < states(grid_area_var)|float }}
+              {{ ((state_attr(grid_area_var,'today')|sort)[24 - expensive_hours_var |int] < states(grid_area_var)|float) or (state_attr(grid_area_var,'current_price')|float >= cheap_price_var | float) }}
         sequence: !input 'expensive'
     default: []
