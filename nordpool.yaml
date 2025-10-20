@@ -26,10 +26,10 @@ blueprint:
       default: 0.05
       selector:
         number:
-          min: 0.0
-          max: 4
+          min: 5
+          max: 20
           mode: slider
-          step: 0.01
+          step: 1
     expensive:
       name: Expensive
       description: Action to run on expensive
