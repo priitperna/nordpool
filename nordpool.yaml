@@ -49,18 +49,24 @@ variables:
   # Convert 15-minute prices to hourly averages for compatibility
   hourly_prices: >-
     {% set prices = state_attr(grid_area_var, 'today') %}
-    {% if prices|length > 24 %}
-      {% set result = [] %}
+    {% if prices is not none and prices|length > 24 %}
+      {% set ns = namespace(result=[]) %}
       {% for i in range(0, 24) %}
-        {% set hour_data = prices[i*4:(i+1)*4] %}
-        {% if hour_data|length > 0 %}
-          {% set hour_avg = (hour_data|sum) / (hour_data|length) %}
-          {% set result = result + [hour_avg] %}
+        {% set start = i * 4 %}
+        {% set end = (i + 1) * 4 %}
+        {% if end <= prices|length %}
+          {% set hour_data = prices[start:end] %}
+          {% if hour_data|length > 0 %}
+            {% set hour_avg = (hour_data|sum) / (hour_data|length) %}
+            {% set ns.result = ns.result + [hour_avg] %}
+          {% endif %}
         {% endif %}
       {% endfor %}
-      {{ result }}
-    {% else %}
+      {{ ns.result }}
+    {% elif prices is not none %}
       {{ prices }}
+    {% else %}
+      {{ [] }}
     {% endif %}
 
 trigger:
@@ -72,11 +78,15 @@ action:
       - conditions:
           - condition: template
             value_template: >-
-              {{ ((hourly_prices|sort)[24 - expensive_hours_var |int] > states(grid_area_var)|float) or (state_attr(grid_area_var,'current_price')|float < cheap_price_var | float) }}
+              {% set sorted_prices = hourly_prices|sort %}
+              {% set threshold_idx = 24 - expensive_hours_var|int %}
+              {{ (sorted_prices|length >= 24 and sorted_prices[threshold_idx] > states(grid_area_var)|float) or (state_attr(grid_area_var,'current_price')|float < cheap_price_var | float) }}
         sequence: !input 'cheap'
       - conditions:
           - condition: template
             value_template: >-
-              {{ ((hourly_prices|sort)[24 - expensive_hours_var |int] < states(grid_area_var)|float) or (state_attr(grid_area_var,'current_price')|float >= cheap_price_var | float) }}
+              {% set sorted_prices = hourly_prices|sort %}
+              {% set threshold_idx = 24 - expensive_hours_var|int %}
+              {{ (sorted_prices|length >= 24 and sorted_prices[threshold_idx] < states(grid_area_var)|float) or (state_attr(grid_area_var,'current_price')|float >= cheap_price_var | float) }}
         sequence: !input 'expensive'
     default: []
